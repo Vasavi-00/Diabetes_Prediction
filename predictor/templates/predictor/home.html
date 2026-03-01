@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diabetes Prediction</title>
+  <style>
+    /* ---------- Reset & Base ---------- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      color: #e2e8f0;
+    }
+
+    /* ---------- Card ---------- */
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 1.25rem;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 640px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+    }
+
+    /* ---------- Header ---------- */
+    .header { text-align: center; margin-bottom: 2rem; }
+    .header .icon { font-size: 3rem; margin-bottom: 0.5rem; }
+    .header h1 { font-size: 1.75rem; font-weight: 700; color: #fff; }
+    .header p  { font-size: 0.9rem; color: #94a3b8; margin-top: 0.35rem; }
+
+    /* ---------- Grid ---------- */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
+
+    /* ---------- Form Fields ---------- */
+    .field { display: flex; flex-direction: column; gap: 0.35rem; }
+    .field label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #7dd3fc;
+    }
+    .field input {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 0.6rem;
+      padding: 0.65rem 0.85rem;
+      color: #f1f5f9;
+      font-size: 0.95rem;
+      transition: border-color 0.2s, background 0.2s;
+      outline: none;
+    }
+    .field input:focus {
+      border-color: #38bdf8;
+      background: rgba(56,189,248,0.08);
+    }
+    .field input::placeholder { color: #64748b; }
+    .field .hint {
+      font-size: 0.72rem;
+      color: #64748b;
+    }
+
+    /* ---------- Submit Button ---------- */
+    .btn {
+      width: 100%;
+      margin-top: 1.5rem;
+      padding: 0.85rem;
+      border: none;
+      border-radius: 0.75rem;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(90deg, #0ea5e9, #6366f1);
+      color: #fff;
+      letter-spacing: 0.02em;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:hover  { opacity: 0.9; }
+    .btn:active { transform: scale(0.98); }
+
+    /* ---------- Result Banner ---------- */
+    .result {
+      margin-top: 1.5rem;
+      padding: 1.1rem 1.25rem;
+      border-radius: 0.85rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    .result.diabetic     { background: rgba(239,68,68,0.18); border: 1px solid rgba(239,68,68,0.45); color: #fca5a5; }
+    .result.non-diabetic { background: rgba(34,197,94,0.18); border: 1px solid rgba(34,197,94,0.45); color: #86efac; }
+
+    .confidence {
+      font-size: 0.82rem;
+      font-weight: 400;
+      margin-top: 0.3rem;
+      color: #94a3b8;
+    }
+
+    /* ---------- Error Banner ---------- */
+    .error-banner {
+      margin-top: 1.25rem;
+      padding: 0.9rem 1.1rem;
+      border-radius: 0.75rem;
+      background: rgba(251,191,36,0.15);
+      border: 1px solid rgba(251,191,36,0.4);
+      color: #fcd34d;
+      font-size: 0.9rem;
+    }
+
+    /* ---------- Divider ---------- */
+    .divider {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      margin: 1.5rem 0;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 0.75rem;
+      color: #475569;
+      margin-top: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="icon">🩺</div>
+    <h1>Diabetes Prediction</h1>
+    <p>Enter patient health metrics below and submit to get a prediction.</p>
+  </div>
+
+  <!-- Prediction Result (shown after POST) -->
+  {% if result %}
+  <div class="result {{ result_class }}">
+    {{ result }}
+    {% if confidence %}
+    <div class="confidence">Model confidence: {{ confidence }}%</div>
+    {% endif %}
+  </div>
+  <hr class="divider">
+  {% endif %}
+
+  <!-- Error Banner -->
+  {% if error %}
+  <div class="error-banner">⚠️ {{ error }}</div>
+  <hr class="divider">
+  {% endif %}
+
+  <!-- Prediction Form -->
+  <form method="POST" action="/">
+    {% csrf_token %}
+
+    <div class="grid">
+
+      <!-- Pregnancies -->
+      <div class="field">
+        <label for="Pregnancies">Pregnancies</label>
+        <input type="number" id="Pregnancies" name="Pregnancies" min="0" max="20" step="1"
+               placeholder="e.g. 2"
+               value="{{ form_data.Pregnancies|default:'' }}" required />
+        <span class="hint">Number of times pregnant</span>
+      </div>
+
+      <!-- Glucose -->
+      <div class="field">
+        <label for="Glucose">Glucose (mg/dL)</label>
+        <input type="number" id="Glucose" name="Glucose" min="0" max="300" step="1"
+               placeholder="e.g. 120"
+               value="{{ form_data.Glucose|default:'' }}" required />
+        <span class="hint">Plasma glucose concentration</span>
+      </div>
+
+      <!-- Blood Pressure -->
+      <div class="field">
+        <label for="BloodPressure">Blood Pressure (mmHg)</label>
+        <input type="number" id="BloodPressure" name="BloodPressure" min="0" max="200" step="1"
+               placeholder="e.g. 70"
+               value="{{ form_data.BloodPressure|default:'' }}" required />
+        <span class="hint">Diastolic blood pressure</span>
+      </div>
+
+      <!-- Skin Thickness -->
+      <div class="field">
+        <label for="SkinThickness">Skin Thickness (mm)</label>
+        <input type="number" id="SkinThickness" name="SkinThickness" min="0" max="100" step="1"
+               placeholder="e.g. 20"
+               value="{{ form_data.SkinThickness|default:'' }}" required />
+        <span class="hint">Triceps skin fold thickness</span>
+      </div>
+
+      <!-- Insulin -->
+      <div class="field">
+        <label for="Insulin">Insulin (μU/mL)</label>
+        <input type="number" id="Insulin" name="Insulin" min="0" max="900" step="1"
+               placeholder="e.g. 80"
+               value="{{ form_data.Insulin|default:'' }}" required />
+        <span class="hint">2-hour serum insulin</span>
+      </div>
+
+      <!-- BMI -->
+      <div class="field">
+        <label for="BMI">BMI (kg/m²)</label>
+        <input type="number" id="BMI" name="BMI" min="0" max="70" step="0.1"
+               placeholder="e.g. 25.6"
+               value="{{ form_data.BMI|default:'' }}" required />
+        <span class="hint">Body mass index</span>
+      </div>
+
+      <!-- Diabetes Pedigree Function -->
+      <div class="field">
+        <label for="DiabetesPedigreeFunction">Pedigree Function</label>
+        <input type="number" id="DiabetesPedigreeFunction" name="DiabetesPedigreeFunction"
+               min="0" max="3" step="0.001"
+               placeholder="e.g. 0.627"
+               value="{{ form_data.DiabetesPedigreeFunction|default:'' }}" required />
+        <span class="hint">Diabetes pedigree function</span>
+      </div>
+
+      <!-- Age -->
+      <div class="field">
+        <label for="Age">Age (years)</label>
+        <input type="number" id="Age" name="Age" min="1" max="120" step="1"
+               placeholder="e.g. 33"
+               value="{{ form_data.Age|default:'' }}" required />
+        <span class="hint">Patient's age in years</span>
+      </div>
+
+    </div><!-- /.grid -->
+
+    <button type="submit" class="btn">🔍 Predict</button>
+
+  </form>
+
+  <p class="footer">
+    Powered by a Random Forest model • For educational use only
+  </p>
+
+</div><!-- /.card -->
+</body>
+</html>
